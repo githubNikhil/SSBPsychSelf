@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-color: #f8f9fa;
+  }
+}
+
+:root {
+  /* Main colors */
+  --primary: #3E6B79; /* Teal blue */
+  --secondary: #F5A540; /* Orange gold */
+  --accent: #5C95B1; /* Light blue */
+  --neutral: #2C3E50; /* Dark slate */
+  
+  /* Supporting colors */
+  --light: #E9EEF2; /* Off-white */
+  --light-accent: #E0F2FE; /* Very light blue */
+  --dark-accent: #1E3A4C; /* Dark blue */
+  --success: #4B9C73; /* Muted green */
+  --warning: #E67E22; /* Amber */
+}
+
+/* Text color classes */
+.text-primary {
+  color: var(--primary);
+}
+
+.text-secondary {
+  color: var(--secondary);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-neutral {
+  color: var(--neutral);
+}
+
+.text-light {
+  color: var(--light);
+}
+
+/* Background color classes */
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.bg-secondary {
+  background-color: var(--secondary);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.bg-neutral {
+  background-color: var(--neutral);
+}
+
+.bg-light {
+  background-color: var(--light);
+}
+
+.bg-light-accent {
+  background-color: var(--light-accent);
+}
+
+/* Gradient backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+}
+
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--warning) 100%);
+}
