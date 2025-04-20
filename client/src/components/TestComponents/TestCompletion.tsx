@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
+import flag_heli from '../../../../attached_assets/Flag_heli.jpg';
 
 interface TestCompletionProps {
   testName: string;
@@ -9,7 +10,13 @@ interface TestCompletionProps {
 
 export default function TestCompletion({ testName }: TestCompletionProps) {
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="relative min-h-screen flex items-center justify-center">
+    <img
+      src={flag_heli}
+      alt="Jet Logo"
+      className="absolute top-0 left-0 w-screen h-screen object-cover opacity-95" // Full-screen image
+    />
+      <div className="max-w-lg mx-auto z-20">
       <Card className="p-8 text-center">
         <CardContent className="pt-6 pb-4 flex flex-col items-center">
           <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -39,5 +46,6 @@ export default function TestCompletion({ testName }: TestCompletionProps) {
         </CardContent>
       </Card>
     </div>
+  </div>  
   );
 }

@@ -100,7 +100,7 @@ export class MemStorage implements IStorage {
   private initializeDefaultContent() {
     // Default Student SDT questions
     const studentQuestions = [
-      "What do your parents think of you?",
+      "What do your parents think about you?",
       "What do your teachers think about you?",
       "What do your friends think about you?",
       "What do you think about yourself?",
@@ -113,7 +113,7 @@ export class MemStorage implements IStorage {
     
     // Default Professional SDT questions
     const professionalQuestions = [
-      "What do your colleagues think of you?",
+      "What do your colleagues think about you?",
       "What does your manager think of you?",
       "What do your subordinates think of you?",
       "What do you think about yourself?",
