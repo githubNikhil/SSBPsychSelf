@@ -1,0 +1,26 @@
+Build a mobile app that ... 
+
+TAT Simulator
+— Simulate the Thematic Apperception Test (TAT) by displaying an image for 30 seconds and maintain gap of 4 minutes between two images. In total 12 images where 11 a displayed image and one last one to be a blank slide. In the end mention Test over. Total time 66 minutes.
+
+
+WAT Simulator
+— Present a series of 60 words for the Word Association Test (WAT). Each word to be displayed for only 15 seconds. Total time 15 minutes.
+
+SRT Simulator
+— Simulate the Situation Reaction Test (SRT) by displaying a scenario for 30 seconds only. In total 60 situations are to be provided. Total time 30 minutes.
+
+SDT Questionnaire
+— Before start of this test you have to ask a question to user with 2 options. Question: What describes you best? Button 1: Student, Button 2: Working Professional. Based on the answer display 5 questions and it should be displayed for 15 minutes. If selected 'Student' then display below 5 questions: 1. What your parents think of you? 2. What your teachers think about you? 3. What do your friends think about you? 4. What do you think about yourself? 5. What would you like to be? If selected 'Working Professional' then display below 5 questions: 1. What your parents think of you? 2. What your Manager/Employer think about you? 3. What do your Colleagues think about you? 4. What do you think about yourself? 5. What would you like to be?
+
+Admin Content Upload
+— Implement an admin interface (protected by a simple password) to upload new images and scenarios for each of the psychological tests (TAT, WAT, SRT).
+Practice Psych Button
+
+    — At Home page create a button "Practice Psych" upon clicking it 5 buttons to be displayed. B1: TAT -> if clicked then simulate TAT test, B2: WAT -> if clicked then simulate WAT test, B3: SRT -> if clicked then simulate SRT test, B4: SDE -> if clicked then simulate SDE test, B5: Full length Psych -> if clicked then simulate All the 4 tests one after another without any break.
+
+Color and style -> use olive green, light blue, white and grey to design
+Layout
+Clean and structured layout to mimic the real test environment.
+Iconography
+Use simple and clear icons for navigation and instructions.
