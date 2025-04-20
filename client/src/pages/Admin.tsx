@@ -13,7 +13,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { getAuthHeader, processWATFile, processSRTFile } from "@/lib/testUtils";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
-import PPTUploader from "@/components/admin/PPTUploader";
+import {useState as useState2} from 'react';
+import {useEffect as useEffect2} from 'react';
+import {useRef as useRef2} from 'react';
+//Import necessary modules for file handling
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
 
 type ContentType = "tat" | "wat" | "srt";
 
@@ -27,7 +33,8 @@ export default function Admin() {
   const [imageUrl, setImageUrl] = useState("");
   const [watWords, setWatWords] = useState("");
   const [srtScenarios, setSrtScenarios] = useState("");
-  
+  const [images, setImages] = useState2([]); // State for TAT images
+
   // Redirect to login if not authenticated or not an admin
   const { isAdmin } = useAuth();
   useEffect(() => {
@@ -35,41 +42,57 @@ export default function Admin() {
       setLocation("/admin-login");
     }
   }, [isAuthenticated, isAdmin, setLocation]);
-  
+
   // Content upload mutations
   const uploadTATMutation = useMutation({
-    mutationFn: async (imageUrl: string) => {
-      return apiRequest("POST", "/api/tat", {
-        imageUrl,
-        active: true
-      }, true); // Use auth for admin endpoints
+    mutationFn: async (files: FileList) => {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+          formData.append('images', files[i]);
+      }
+
+      return apiRequest("POST", "/api/tat/images", formData, true); // Assuming a new API endpoint for image uploads
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tat'] });
       toast({
         title: "Success",
-        description: "TAT image uploaded successfully",
+        description: "TAT images uploaded successfully",
       });
-      setImageUrl("");
+      //setImageUrl(""); // No longer needed
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to upload TAT image",
+        description: error.message || "Failed to upload TAT images",
         variant: "destructive"
       });
     }
   });
-  
+
   const uploadWATMutation = useMutation({
     mutationFn: async (words: string) => {
       const wordArray = words
-        .split(/\r?\n/)
+        .split(',')
         .map(word => word.trim())
-        .filter(word => word.length > 0)
-        .map(word => ({ word, active: true }));
+        .filter(word => word.length > 0);
+
+      const email = localStorage.getItem('email');
+      const password = localStorage.getItem('password');
       
-      return apiRequest("POST", "/api/wat", wordArray, true);
+      const response = await fetch('/api/wat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({words: wordArray})
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload WAT words');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/wat'] });
@@ -87,16 +110,30 @@ export default function Admin() {
       });
     }
   });
-  
+
   const uploadSRTMutation = useMutation({
     mutationFn: async (scenarios: string) => {
       const scenarioArray = scenarios
-        .split(/\r?\n\r?\n/)
+        .split(';')
         .map(scenario => scenario.trim())
-        .filter(scenario => scenario.length > 0)
-        .map(scenario => ({ scenario, active: true }));
-      
-      return apiRequest("POST", "/api/srt", scenarioArray, true);
+        .filter(scenario => scenario.length > 0);
+
+      const email = localStorage.getItem('email');
+      const password = localStorage.getItem('password');
+
+      const response = await fetch('/api/srt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({scenarios: scenarioArray})
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload SRT scenarios');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/srt'] });
@@ -114,17 +151,17 @@ export default function Admin() {
       });
     }
   });
-  
+
   // File upload handlers
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      
+
       if (contentType === "wat") {
         const words = processWATFile(content);
         setWatWords(words.map(item => item.word).join('\n'));
@@ -133,10 +170,17 @@ export default function Admin() {
         setSrtScenarios(scenarios.map(item => item.scenario).join('\n\n'));
       }
     };
-    
+
     reader.readAsText(file);
   };
-  
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      uploadTATMutation.mutate(files);
+    }
+  };
+
   // Save content handler
   const handleSaveContent = () => {
     switch (contentType) {
@@ -146,7 +190,7 @@ export default function Admin() {
         } else {
           toast({
             title: "Error",
-            description: "Please enter an image URL",
+            description: "Please select images",
             variant: "destructive"
           });
         }
@@ -183,7 +227,7 @@ export default function Admin() {
           <CardHeader className="p-4 border-b border-gray-200">
             <CardTitle className="text-xl font-semibold text-olive-green">Admin Dashboard</CardTitle>
           </CardHeader>
-          
+
           <CardContent className="p-6">
             <div className="mb-6">
               <h3 className="text-lg font-medium mb-4">Content Management</h3>
@@ -204,14 +248,19 @@ export default function Admin() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 {/* TAT Content Upload */}
                 {contentType === "tat" && (
                   <div className="mb-4">
-                    <PPTUploader />
+                    <Input
+                      type="file"
+                      accept="image/jpeg, image/png"
+                      onChange={handleImageUpload}
+                      multiple
+                    />
                   </div>
                 )}
-                
+
                 {/* WAT Content Upload */}
                 {contentType === "wat" && (
                   <>
@@ -246,9 +295,10 @@ export default function Admin() {
                         placeholder="Enter words, one per line..."
                       />
                     </div>
+                    <Button onClick={() => uploadWATMutation.mutate(watWords)}>Save WAT Words</Button> {/* Added save button */}
                   </>
                 )}
-                
+
                 {/* SRT Content Upload */}
                 {contentType === "srt" && (
                   <>
@@ -283,20 +333,12 @@ export default function Admin() {
                         placeholder="Enter scenarios, separate with blank lines..."
                       />
                     </div>
+                    <Button onClick={() => uploadSRTMutation.mutate(srtScenarios)}>Save SRT Scenarios</Button> {/* Added save button */}
                   </>
                 )}
-                
-                <div className="mt-4">
-                  <Button 
-                    className="bg-olive-green hover:bg-olive-green/90 text-white font-medium py-2 px-4 rounded"
-                    onClick={handleSaveContent}
-                    disabled={uploadTATMutation.isPending || uploadWATMutation.isPending || uploadSRTMutation.isPending}
-                  >
-                    {(uploadTATMutation.isPending || uploadWATMutation.isPending || uploadSRTMutation.isPending) 
-                      ? "Saving..." 
-                      : "Save Content"}
-                  </Button>
-                </div>
+
+                {/* Removed the original Save Content button and replaced with individual save buttons for each content type */}
+
               </div>
             </div>
           </CardContent>

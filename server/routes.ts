@@ -4,6 +4,13 @@ import path from "path";
 import { storage } from "./storage";
 import { insertTATContentSchema, insertWATContentSchema, insertSRTContentSchema } from "@shared/schema";
 import { z } from "zod";
+import fs from 'fs/promises';
+import path from 'path';
+
+const getRandomItems = (array: any[], count: number) => {
+  const shuffled = [...array].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+};
 import { upload, extractImagesFromPPTX, getRandomTATImageSet, handleUploadErrors } from "./pptHandler";
 
 // Authentication middleware
@@ -53,38 +60,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
-      
-      // First try to find the user by email
-      let user = await storage.getUserByEmail(email);
-      
-      // If not found, check if using username instead (for backward compatibility)
-      if (!user) {
-        user = await storage.getUserByUsername(email);
+
+      // Read user credentials file
+      const userCredsPath = path.join(process.cwd(), 'InhouseDB/user_creds.json');
+      let userData;
+      try {
+        const userCredsData = await fs.readFile(userCredsPath, 'utf-8');
+        userData = JSON.parse(userCredsData);
+      } catch (error) {
+        return res.status(500).json({ message: "Error reading user credentials" });
       }
-      
-      if (!user || user.password !== password) {
+
+      // Find user by email (case insensitive)
+      const user = userData.users.find(
+        (u) => u.email.toLowerCase() === email.toLowerCase()
+      );
+
+      if (!user) {
+        return res.status(401).json({ message: "You need to register first" });
+      }
+
+      if (user.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
-      // Update the last login timestamp
-      await storage.updateUserLastLogin(user.id);
-      
+
+      // Update last login timestamp
+      const now = new Date();
+      const istTime = new Date(now.getTime() + (5 * 60 + 30) * 60000).toISOString();
+      user.lastLogin = istTime;
+
+      // Save updated user data back to file
+      await fs.writeFile(userCredsPath, JSON.stringify(userData, null, 2));
+
       // Return user info without password
       const { password: _, ...userInfo } = user;
       
-      // Ensure we have an IST timestamp if lastLogin was null
-      let lastLogin = user.lastLogin;
-      if (!lastLogin) {
-        const now = new Date();
-        lastLogin = new Date(now.getTime() + (5 * 60 + 30) * 60000).toISOString(); // IST time
-      }
-      
       res.json({ 
         success: true, 
-        user: {
-          ...userInfo,
-          lastLogin
-        }
+        user: userInfo
       });
     } catch (error) {
       res.status(500).json({ message: "Server error", error: (error as Error).message });
@@ -97,6 +110,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { username, email, password } = req.body;
       if (!username || !email || !password) {
         return res.status(400).json({ message: "Username, email and password are required" });
+      }
+
+      // Read existing users
+      const userCredsPath = path.join(process.cwd(), 'InhouseDB/user_creds.json');
+      let userData;
+      try {
+        const userCredsData = await fs.readFile(userCredsPath, 'utf-8');
+        userData = JSON.parse(userCredsData);
+      } catch (error) {
+        // Initialize new users array if file doesn't exist
+        userData = { users: [] };
+      }
+
+      // Check for existing email
+      const existingUser = userData.users.find(
+        (u: any) => u.email.toLowerCase() === email.toLowerCase()
+      );
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
       }
       
       // Check if user with same email already exists
@@ -115,17 +147,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const istTime = new Date(now.getTime() + (5 * 60 + 30) * 60000).toISOString(); // IST time
       
-      const user = await storage.createUser({
+      // Add new user
+      const newUser = {
         username,
         email,
         password,
         isAdmin: false,
         lastLogin: istTime
-      });
+      };
       
-      // Return user info without password
-      const { password: _, ...userInfo } = user;
-      res.status(201).json({ success: true, user: userInfo });
+      userData.users.push(newUser);
+      await fs.writeFile(userCredsPath, JSON.stringify(userData, null, 2));
+      
+      // Return new user info without password
+      const { password: _, ...userInfo } = newUser;
+      res.status(201).json({ 
+        success: true, 
+        message: "Registered successfully, Please login",
+        user: userInfo 
+      });
     } catch (error) {
       res.status(500).json({ message: "Server error", error: (error as Error).message });
     }
@@ -141,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/tat", isAuthenticated, async (req, res) => {
+  app.post("/api/tat", async (req, res) => {
     try {
       const parsedBody = insertTATContentSchema.safeParse(req.body);
       if (!parsedBody.success) {
@@ -176,26 +216,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WAT Content routes
   app.get("/api/wat", async (_, res) => {
     try {
-      const content = await storage.getActiveWATContent();
-      res.json(content);
+      const watData = await fs.readFile(path.join(process.cwd(), 'InhouseDB/wat_list.json'), 'utf-8');
+      const { words } = JSON.parse(watData);
+      const randomWords = getRandomItems(words, 60);
+      res.json(randomWords.map((word: string) => ({ word, active: true })));
     } catch (error) {
       res.status(500).json({ message: "Server error", error: (error as Error).message });
     }
   });
   
-  app.post("/api/wat", isAuthenticated, async (req, res) => {
+  app.post("/api/wat", async (req, res) => {
     try {
-      // If it's an array of words
-      if (Array.isArray(req.body)) {
-        const wordsSchema = z.array(insertWATContentSchema);
-        const parsedBody = wordsSchema.safeParse(req.body);
-        if (!parsedBody.success) {
-          return res.status(400).json({ message: "Invalid data", errors: parsedBody.error.format() });
-        }
-        
-        const content = await storage.createManyWATContent(parsedBody.data);
-        return res.status(201).json(content);
+      const { words } = req.body;
+      if (!Array.isArray(words)) {
+        return res.status(400).json({ message: "Invalid data format" });
       }
+
+      // Read existing WAT list
+      const watPath = path.join(process.cwd(), 'InhouseDB/wat_list.json');
+      let watData = { words: [] };
+      try {
+        const existingData = await fs.readFile(watPath, 'utf-8');
+        watData = JSON.parse(existingData);
+      } catch (error) {
+        // File doesn't exist, use default empty array
+      }
+
+      // Add new words
+      watData.words = [...new Set([...watData.words, ...words])];
+      
+      // Save back to file
+      await fs.writeFile(watPath, JSON.stringify(watData, null, 2));
+      
+      return res.status(201).json({ success: true, message: "Words added successfully" });
       
       // If it's a single word
       const parsedBody = insertWATContentSchema.safeParse(req.body);
@@ -231,26 +284,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SRT Content routes
   app.get("/api/srt", async (_, res) => {
     try {
-      const content = await storage.getActiveSRTContent();
-      res.json(content);
+      const srtData = await fs.readFile(path.join(process.cwd(), 'InhouseDB/srt_list.json'), 'utf-8');
+      const { scenarios } = JSON.parse(srtData);
+      const randomScenarios = getRandomItems(scenarios, 60);
+      res.json(randomScenarios.map((scenario: string) => ({ scenario, active: true })));
     } catch (error) {
       res.status(500).json({ message: "Server error", error: (error as Error).message });
     }
   });
   
-  app.post("/api/srt", isAuthenticated, async (req, res) => {
+  app.post("/api/srt", async (req, res) => {
     try {
-      // If it's an array of scenarios
-      if (Array.isArray(req.body)) {
-        const scenariosSchema = z.array(insertSRTContentSchema);
-        const parsedBody = scenariosSchema.safeParse(req.body);
-        if (!parsedBody.success) {
-          return res.status(400).json({ message: "Invalid data", errors: parsedBody.error.format() });
-        }
-        
-        const content = await storage.createManySRTContent(parsedBody.data);
-        return res.status(201).json(content);
+      const { scenarios } = req.body;
+      if (!Array.isArray(scenarios)) {
+        return res.status(400).json({ message: "Invalid data format" });
       }
+
+      // Read existing SRT list
+      const srtPath = path.join(process.cwd(), 'InhouseDB/srt_list.json');
+      let srtData = { scenarios: [] };
+      try {
+        const existingData = await fs.readFile(srtPath, 'utf-8');
+        srtData = JSON.parse(existingData);
+      } catch (error) {
+        // File doesn't exist, use default empty array
+      }
+
+      // Add new scenarios
+      srtData.scenarios = [...new Set([...srtData.scenarios, ...scenarios])];
+      
+      // Save back to file
+      await fs.writeFile(srtPath, JSON.stringify(srtData, null, 2));
+      
+      return res.status(201).json({ success: true, message: "Scenarios added successfully" });
       
       // If it's a single scenario
       const parsedBody = insertSRTContentSchema.safeParse(req.body);
@@ -330,9 +396,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get random TAT image set
   app.get("/api/tat/random-set", async (_, res) => {
     try {
-      const imageSet = getRandomTATImageSet();
+      const imageSet = await getRandomTATImageSet();
       if (imageSet.length === 0) {
-        return res.status(404).json({ message: "No TAT image sets available" });
+        return res.status(404).json({ message: "No TAT images available" });
       }
       
       res.json({ 

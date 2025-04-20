@@ -40,6 +40,7 @@ export default function SDTSelection() {
               <Button 
                 className="bg-primary text-grey font-medium py-4 px-8 rounded-lg shadow-md text-lg relative group"
                 onClick={handleProfessionalSelection}>
+			   
                 Working Professional
               </Button>
             </div>

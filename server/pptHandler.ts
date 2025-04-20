@@ -149,7 +149,10 @@ export function getAllTATImageSets(): { [key: string]: string[] } {
 }
 
 // Helper function to get a random TAT image set
-export function getRandomTATImageSet(): string[] {
+export async function getRandomTATImageSet(): Promise<string[]> {
+  const imageFiles = await fs.readdir(path.join(process.cwd(), 'uploads/images'));
+  const validImageFiles = imageFiles.filter(file => /\.(jpg|jpeg|png)$/i.test(file));
+  return getRandomItems(validImageFiles, 11).map(file => `/uploads/images/${file}`);
   const imageSets = getAllTATImageSets();
   const setKeys = Object.keys(imageSets);
   

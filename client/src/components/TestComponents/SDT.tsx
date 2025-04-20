@@ -88,7 +88,7 @@ export default function SDT() {
             ) : (
               <div className="space-y-4 p-4 bg-gray-200 bg-opacity-50 rounded-lg">
                 {questions.map((question, index) => (
-                  <div key={question.id} >
+                  <div key={question.id} className="p-4 bg-gray-200 bg-opacity-50 rounded-lg">
                     <h4 className="font-medium mb-2">{index + 1}. {question.question}</h4>
                     {/* <Textarea 
                       className="w-full p-3 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-light-blue"
